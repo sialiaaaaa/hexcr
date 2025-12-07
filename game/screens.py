@@ -1,4 +1,9 @@
+async def scene_logic(io):
+    io.state.next_event(io).run()
+    io.switch_screen("fortify")
+
 async def fortify_logic(io):
+    io.print("")
     io.print("This is the [green]fortify[/green] screen.")
     while True:
         user_input = await io.get_input("You might want to [green]sojourn[/green] or [green]battle[/green].")
@@ -16,6 +21,7 @@ async def fortify_logic(io):
             io.print("Improper.")
 
 async def sojourn_logic(io):
+    io.print("")
     io.print("This is the [green]sojourn[/green] screen.")
     while True:
         user_input = await io.get_input("You might want to [green]fortify[/green] or [green]battle[/green].")
@@ -33,6 +39,7 @@ async def sojourn_logic(io):
             io.print("Improper.")
 
 async def battle_logic(io):
+    io.print("")
     io.print("This is the [green]battle[/green] screen.")
     while True:
         user_input = await io.get_input("You might want to [green]sojourn[/green] or [green]fortify[/green].")

@@ -1,0 +1,26 @@
+Placeholder {
+    width: 1fr;
+    height: 1fr;
+}
+
+InputField {
+    dock: bottom;
+    border: aliceblue;
+}
+
+BattleLog {
+    height: 1fr;
+    border: aliceblue;
+}
+
+BattleLogContainer {
+    height: 1fr;
+}
+
+#sojourn-left-panel {
+    width: 30%;
+}
+
+#battle-top-panel {
+    height: 60%;
+}

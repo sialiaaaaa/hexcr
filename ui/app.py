@@ -1,14 +1,14 @@
 from textual.app import App, ComposeResult
 from textual.screen import Screen
-from textual.widgets import RichLog, Input, Placeholder
-from textual.containers import Container
+from textual.widgets import RichLog, Input, Placeholder, Static
+from textual.containers import Container, Vertical, Horizontal
 
 from asyncio import Event
 import re
 
 pattern = re.compile('[\\W_]+')
 
-import game.sample_logic as sample_logic
+import game.screens as screens
 
 """
 Shared input/output class so other functions can interface with Textual
@@ -17,6 +17,10 @@ class GameIO:
     def __init__(self, screen, app):
         self.screen = screen
         self.app = app
+
+    @property
+    def state(self):
+        return self.app.game_state
 
     def print(self, message):
         """Searches for a RichLog tagged 'output' on the current screen and displays text there."""
@@ -35,16 +39,23 @@ class GameIO:
         self.app.pop_screen()
 
     def switch_screen(self, target_screen_name: str):
-        self.app.pop_screen()
-        self.app.push_screen(target_screen_name)
+        self.app.switch_screen(target_screen_name)
+
+
 
 """Various widgets for use across various screens."""
 class InputField(Input):
-    DEFAULT_CSS = "InputField { dock: bottom; border: aliceblue; }"
+    def __init__(self, id):
+        super().__init__()
+        self.placeholder = "Supply input..."
+        self.id = id
 
 class BattleLog(RichLog):
     can_focus = False
-    DEFAULT_CSS = "BattleLog { height: 1fr; border: aliceblue; }"
+
+class BattleLogContainer(Container):
+    """Placeholder that will hold the battle log"""
+    pass
 
 """Basic Screen from which to inherit."""
 class GameScreen(Screen):
@@ -53,25 +64,34 @@ class GameScreen(Screen):
         self.input_value = None
         self.input_event = Event()
         self.io = None  # Will be set when mounted
-        self.log_container_id = "log-container"
 
     def on_mount(self):
-        container = self.query_one(f"#{self.log_container_id}", Container)
-        container.mount(self.app.battle_log)
-
         # Create IO interface with access to both screen and app
         self.io = GameIO(self, self.app)
+
+    def on_screen_resume(self):
+        """Called when returning to this screen after it was suspended"""
+        self.run_worker(self._relocate_battle_log())
         self.run_worker(self.main_flow())
 
-    def compose(self):
-        yield Container(id=self.log_container_id)
-        yield InputField(id="input", placeholder="Enter command...")
+    async def _relocate_battle_log(self):
+        """Move the battle_log to this screen's placeholder"""
+        try:
+            container = self.query_one(BattleLogContainer)
+            battle_log = self.app.battle_log
 
-    async def on_unmount(self):
-        # Remove battle log from this screen (but don't delete it)
-        # It will be preserved and can be mounted in the next screen
-        if self.app.battle_log in self.query(BattleLog):
-            await self.app.battle_log.remove()
+            # Remove from current parent if it has one
+            if battle_log.parent is not None:
+                await battle_log.remove()
+
+            # Mount to new container
+            await container.mount(battle_log)
+        except Exception as e:
+            self.log(f"Error relocating battle log: {e}")
+
+    def compose(self):
+        yield BattleLogContainer()
+        yield InputField(id="input")
 
     async def get_input(self, prompt: str) -> str:
         """Internal method to handle input collection"""
@@ -91,35 +111,52 @@ class GameScreen(Screen):
         """Override this in subclasses to define screen logic"""
         raise NotImplementedError("Subclasses must implement main_flow.")
 
-"""Screens."""
-class FortifyScreen(GameScreen):
 
+"""Screens."""
+
+class SceneScreen(GameScreen):
     async def main_flow(self):
-        # Import here to avoid circular dependencies
-        from game.sample_logic import fortify_logic
-        await fortify_logic(self.io)
+        await screens.scene_logic(self.io)
+
+class FortifyScreen(GameScreen):
+    async def main_flow(self):
+        await screens.fortify_logic(self.io)
 
 class SojournScreen(GameScreen):
+    def compose(self):
+        with Horizontal():
+            with Vertical(id="sojourn-left-panel"):
+                yield Placeholder(label="top left")
+                yield BattleLogContainer()
+            yield Placeholder(label="right")
+
+        yield InputField(id="input")
 
     async def main_flow(self):
-        # Import here to avoid circular dependencies
-        from game.sample_logic import sojourn_logic
-        await sojourn_logic(self.io)
+        await screens.sojourn_logic(self.io)
 
 class BattleScreen(GameScreen):
+    def compose(self):
+        with Vertical():
+            with Horizontal(id="battle-top-panel"):
+                yield Placeholder(label="friends")
+                yield Placeholder(label="foes")
+            yield BattleLogContainer()
+        yield InputField(id="input")
 
     async def main_flow(self):
-        # Import here to avoid circular dependencies
-        from game.sample_logic import battle_logic
-        await battle_logic(self.io)
+        await screens.battle_logic(self.io)
 
 class Game(App):
 
-    SCREENS = { "fortify": FortifyScreen, "sojourn": SojournScreen, "battle": BattleScreen }
+    SCREENS = { "scenes": SceneScreen, "fortify": FortifyScreen, "sojourn": SojournScreen, "battle": BattleScreen }
 
-    def __init__(self):
+    CSS_PATH = "../styles.css"
+
+    def __init__(self, game_state):
         super().__init__()
         self.battle_log = BattleLog(id="battle-log", wrap=True, markup=True)
+        self.game_state = game_state
 
     def on_mount(self):
-        self.push_screen("fortify")
+        self.push_screen("scenes")
