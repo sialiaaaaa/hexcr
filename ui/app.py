@@ -63,18 +63,13 @@ class GameScreen(Screen):
         super().__init__()
         self.input_value = None
         self.input_event = Event()
-        self.io = None  # Will be set when mounted
 
     def on_mount(self):
-        # Create IO interface with access to both screen and app
-        self.io = GameIO(self, self.app)
-        self.event_handler = EventHandler(self.io)
+        pass
 
     def on_screen_resume(self):
         """Called when returning to this screen after it was suspended"""
         self.run_worker(self._relocate_battle_log())
-        self.io.state.screen = self
-        self.run_worker(self.main_flow())
 
     async def _relocate_battle_log(self):
         """Move the battle_log to this screen's placeholder"""
@@ -109,9 +104,6 @@ class GameScreen(Screen):
         self.input_event.set()
         event.input.clear()
 
-    async def main_flow(self):
-        await self.event_handler.run()
-
 
 """Screens."""
 
@@ -141,7 +133,7 @@ class BattleScreen(GameScreen):
 
 class Game(App):
 
-    SCREENS = { "scenes": SceneScreen, "fortify": FortifyScreen, "sojourn": SojournScreen, "battle": BattleScreen }
+    SCREENS = { "scene": SceneScreen, "fortify": FortifyScreen, "sojourn": SojournScreen, "battle": BattleScreen }
 
     CSS_PATH = "../styles.css"
 
@@ -151,4 +143,16 @@ class Game(App):
         self.game_state = game_state
 
     def on_mount(self):
-        self.push_screen("scenes")
+        self.push_screen("scene")
+
+        # Create IO interface with access to both screen and app
+        self.io = GameIO(self, self.app)
+        self.event_handler = EventHandler(self.io)
+
+        self.run_worker(self._run_game())
+
+    async def _run_game(self):
+        io = GameIO(self.screen, self)
+        event_handler = EventHandler(io)
+        await event_handler.run()
+

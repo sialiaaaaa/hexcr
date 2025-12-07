@@ -7,7 +7,7 @@ class EventHandler:
 
     async def run(self):
         if not self.state.check_flag("seen_character_creation"):
-            self.io.switch_screen("scenes")
+            self.io.switch_screen("scene")
             self.state.player = await events.CreateCharacter(self.io).run()
             self.state.flags.append("seen_character_creation")
 
