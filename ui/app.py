@@ -1,6 +1,7 @@
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import RichLog, Input, Placeholder
+from textual.containers import Container
 
 from asyncio import Event
 import re
@@ -19,7 +20,7 @@ class GameIO:
 
     def print(self, message):
         """Searches for a RichLog tagged 'output' on the current screen and displays text there."""
-        log = self.screen.query_one("#output", RichLog)
+        log = self.app.battle_log
         log.write(message)
 
     async def get_input(self, prompt: str):
@@ -29,7 +30,6 @@ class GameIO:
     def push_screen(self, screen_name: str):
         """Push a screen by name."""
         self.app.push_screen(screen_name)
-
 
 """Various widgets for use across various screens."""
 class InputField(Input):
@@ -46,36 +46,50 @@ class GameScreen(Screen):
         self.input_value = None
         self.input_event = Event()
         self.io = None  # Will be set when mounted
+        self.log_container_id = "log-container"
 
     def on_mount(self):
+        container = self.query_one(f"#{self.log_container_id}", Container)
+        container.mount(self.app.battle_log)
+
         # Create IO interface with access to both screen and app
         self.io = GameIO(self, self.app)
         self.run_worker(self.main_flow())
 
+    def compose(self):
+        with Container(id=self.log_container_id):
+            pass  # Battle log will be mounted here
+        yield InputField(id="input", placeholder="Enter command...")
+
+    async def on_unmount(self):
+        # Remove battle log from this screen (but don't delete it)
+        # It will be preserved and can be mounted in the next screen
+        if self.app.battle_log in self.query(BattleLog):
+            await self.app.battle_log.remove()
+
     async def get_input(self, prompt: str) -> str:
         """Internal method to handle input collection"""
-        log = self.query_one("#output", RichLog)
-        log.write(prompt)
+        self.app.battle_log.write(prompt)
         self.input_event.clear()
         await self.input_event.wait()
         return pattern.sub('', self.input_value).upper()
 
     def on_input_submitted(self, event: Input.Submitted):
         """Handle when user submits input"""
-        log = self.query_one("#output", RichLog)
-        log.write(f"> {event.value}")
+        self.app.battle_log.write(f"> {event.value}")
         self.input_value = event.value
         self.input_event.set()
         event.input.clear()
 
     async def main_flow(self):
         """Override this in subclasses to define screen logic"""
-        raise NotImplementedError("Subclasses must implement main_flow")
+        raise NotImplementedError("Subclasses must implement main_flow.")
 
 """Screens."""
 class FortifyScreen(GameScreen):
     def compose(self):
-        yield BattleLog(id="output", wrap=True, markup=True)
+        with Container(id=self.log_container_id):
+            pass  # Battle log goes here
         yield InputField(id="input")
 
     async def main_flow(self):
@@ -85,15 +99,33 @@ class FortifyScreen(GameScreen):
 
 class SojournScreen(GameScreen):
     def compose(self) -> ComposeResult:
-        yield Placeholder(id="sojourn", label="Sojourn Screen - Press Ctrl+Q to exit.")
+        with Container(id=self.log_container_id):
+            pass  # Battle log goes here
+        yield InputField(id="input")
+
+    async def main_flow(self):
+        # Import here to avoid circular dependencies
+        from game.sample_logic import fortify_logic
+        await fortify_logic(self.io)
 
 class BattleScreen(GameScreen):
     def compose(self):
-        yield Placeholder(id="battle", label="Battle screen.")
+        with Container(id=self.log_container_id):
+            pass  # Battle log goes here
+        yield InputField(id="input")
+
+    async def main_flow(self):
+        # Import here to avoid circular dependencies
+        from game.sample_logic import fortify_logic
+        await fortify_logic(self.io)
 
 class Game(App):
 
     SCREENS = { "fortify": FortifyScreen, "sojourn": SojournScreen, "battle": BattleScreen }
+
+    def __init__(self):
+        super().__init__()
+        self.battle_log = BattleLog(id="log-container", wrap=True, markup=True)
 
     def on_mount(self):
         self.push_screen("fortify")
