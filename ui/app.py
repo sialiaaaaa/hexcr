@@ -8,7 +8,7 @@ import re
 
 pattern = re.compile('[\\W_]+')
 
-import game.screens as screens
+from game.screens import EventHandler
 
 """
 Shared input/output class so other functions can interface with Textual
@@ -68,10 +68,12 @@ class GameScreen(Screen):
     def on_mount(self):
         # Create IO interface with access to both screen and app
         self.io = GameIO(self, self.app)
+        self.event_handler = EventHandler(self.io)
 
     def on_screen_resume(self):
         """Called when returning to this screen after it was suspended"""
         self.run_worker(self._relocate_battle_log())
+        self.io.state.screen = self
         self.run_worker(self.main_flow())
 
     async def _relocate_battle_log(self):
@@ -102,25 +104,22 @@ class GameScreen(Screen):
 
     def on_input_submitted(self, event: Input.Submitted):
         """Handle when user submits input"""
-        self.app.battle_log.write(f"> {pattern.sub('', event.value).upper()}")
+        self.app.battle_log.write(f"> {pattern.sub('', event.value).upper()}\n")
         self.input_value = event.value
         self.input_event.set()
         event.input.clear()
 
     async def main_flow(self):
-        """Override this in subclasses to define screen logic"""
-        raise NotImplementedError("Subclasses must implement main_flow.")
+        await self.event_handler.run()
 
 
 """Screens."""
 
 class SceneScreen(GameScreen):
-    async def main_flow(self):
-        await screens.scene_logic(self.io)
+    pass
 
 class FortifyScreen(GameScreen):
-    async def main_flow(self):
-        await screens.fortify_logic(self.io)
+    pass
 
 class SojournScreen(GameScreen):
     def compose(self):
@@ -129,11 +128,7 @@ class SojournScreen(GameScreen):
                 yield Placeholder(label="top left")
                 yield BattleLogContainer()
             yield Placeholder(label="right")
-
         yield InputField(id="input")
-
-    async def main_flow(self):
-        await screens.sojourn_logic(self.io)
 
 class BattleScreen(GameScreen):
     def compose(self):
@@ -143,9 +138,6 @@ class BattleScreen(GameScreen):
                 yield Placeholder(label="foes")
             yield BattleLogContainer()
         yield InputField(id="input")
-
-    async def main_flow(self):
-        await screens.battle_logic(self.io)
 
 class Game(App):
 
