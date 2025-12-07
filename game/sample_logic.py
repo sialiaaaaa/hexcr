@@ -1,9 +1,16 @@
-def write_some_prompts(screen):
+async def fortify_logic(io):
+    io.print("This is the [green]fortify[/green] screen.")
     while True:
-        user_input = await screen.get_input("Type [green]sojourn[/green] to change screens.")
+        user_input = await io.get_input("You might want to [green]sojourn[/green] or [green]battle[/green].")
         if user_input == "SOJOURN":
-            screen.print(f"You said {user_input}.")
-            # Switch screens somehow? Need to be able to write app.push_screen here, but I can only see the screen rather than the app from this function.
+            io.print("You sojourn.")
+            io.push_screen("sojourn")
             break
+        if user_input == "BATTLE":
+            io.print("You begin to wage war.")
+            io.push_screen("battle")
+            break
+        if user_input == "FORTIFY":
+            io.print("You are already [green]fortified[/green].")
         else:
-            screen.print(f"You said {user_input}, which is wrong.")
+            io.print("Improper.")
