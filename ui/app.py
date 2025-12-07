@@ -6,7 +6,7 @@ from textual.containers import Container
 from asyncio import Event
 import re
 
-pattern = re.compile('[\W_]+')
+pattern = re.compile('[\\W_]+')
 
 import game.sample_logic as sample_logic
 
@@ -30,6 +30,13 @@ class GameIO:
     def push_screen(self, screen_name: str):
         """Push a screen by name."""
         self.app.push_screen(screen_name)
+
+    def pop_screen(self):
+        self.app.pop_screen()
+
+    def switch_screen(self, target_screen_name: str):
+        self.app.pop_screen()
+        self.app.push_screen(target_screen_name)
 
 """Various widgets for use across various screens."""
 class InputField(Input):
@@ -57,8 +64,7 @@ class GameScreen(Screen):
         self.run_worker(self.main_flow())
 
     def compose(self):
-        with Container(id=self.log_container_id):
-            pass  # Battle log will be mounted here
+        yield Container(id=self.log_container_id)
         yield InputField(id="input", placeholder="Enter command...")
 
     async def on_unmount(self):
@@ -76,7 +82,7 @@ class GameScreen(Screen):
 
     def on_input_submitted(self, event: Input.Submitted):
         """Handle when user submits input"""
-        self.app.battle_log.write(f"> {event.value}")
+        self.app.battle_log.write(f"> {pattern.sub('', event.value).upper()}")
         self.input_value = event.value
         self.input_event.set()
         event.input.clear()
@@ -87,10 +93,6 @@ class GameScreen(Screen):
 
 """Screens."""
 class FortifyScreen(GameScreen):
-    def compose(self):
-        with Container(id=self.log_container_id):
-            pass  # Battle log goes here
-        yield InputField(id="input")
 
     async def main_flow(self):
         # Import here to avoid circular dependencies
@@ -98,26 +100,18 @@ class FortifyScreen(GameScreen):
         await fortify_logic(self.io)
 
 class SojournScreen(GameScreen):
-    def compose(self) -> ComposeResult:
-        with Container(id=self.log_container_id):
-            pass  # Battle log goes here
-        yield InputField(id="input")
 
     async def main_flow(self):
         # Import here to avoid circular dependencies
-        from game.sample_logic import fortify_logic
-        await fortify_logic(self.io)
+        from game.sample_logic import sojourn_logic
+        await sojourn_logic(self.io)
 
 class BattleScreen(GameScreen):
-    def compose(self):
-        with Container(id=self.log_container_id):
-            pass  # Battle log goes here
-        yield InputField(id="input")
 
     async def main_flow(self):
         # Import here to avoid circular dependencies
-        from game.sample_logic import fortify_logic
-        await fortify_logic(self.io)
+        from game.sample_logic import battle_logic
+        await battle_logic(self.io)
 
 class Game(App):
 
@@ -125,7 +119,7 @@ class Game(App):
 
     def __init__(self):
         super().__init__()
-        self.battle_log = BattleLog(id="log-container", wrap=True, markup=True)
+        self.battle_log = BattleLog(id="battle-log", wrap=True, markup=True)
 
     def on_mount(self):
         self.push_screen("fortify")
