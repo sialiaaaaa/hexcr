@@ -1,5 +1,10 @@
+import game.events as events
+
 async def scene_logic(io):
-    io.state.next_event(io).run()
+    if io.state.flags["need_character_creation"]:
+        io.state.player = await events.CreateCharacter(io).run()
+        io.state.flags["need_character_creation"] = False
+    io.print(f"Your name is [red]{io.state.player.name}[/red].")
     io.switch_screen("fortify")
 
 async def fortify_logic(io):

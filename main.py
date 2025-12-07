@@ -6,7 +6,7 @@ A main file calls a `ui.py` that runs Textual. The UI has three screens, which c
 """
 def main():
     print("Initialising game...")
-    state = GameState(next_event=events.CharacterCreation)
+    state = GameState()
     print("Starting Textual app...")
     app = Game(state)
     app.run()
