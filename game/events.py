@@ -1,5 +1,7 @@
 from game.state import Player
-import inflect
+from generator.names import Generator
+import inflect, humanize
+from pathlib import Path
 
 inflector = inflect.engine()
 
@@ -56,5 +58,34 @@ class CreateCharacter(Event):
 
         attributes = {"frailty": 20-statistic_dict["strength"], "gracelessness": 20-statistic_dict["dexterity"], "caprice": 20-statistic_dict["conviction"], "misfortune": 20-statistic_dict["luck"]}
         return Player(name, attributes)
+
+class ChooseStartingLocation(Event):
+    async def run(self):
+        gen = Generator()
+        gen.load_from_json(Path("generator/words.json"))
+        locations = []
+        for i in range(3):
+            locations.append(gen.generate_random({"place"}))
+        self.io.print(f"""You may begin in any of the following [blue]environs[/blue]:
+    {inflector.an(locations[0].name)},
+    {inflector.an(locations[1].name)},
+    or {inflector.an(locations[2].name)}?
+""")
+        while True:
+            while True:
+                choice = await self.io.get_input(f"In which [blue]environ[/blue] will you begin?")
+                try:
+                    location_choice = locations[int(choice)-1]
+                    break
+                except:
+                    self.io.print("Submit a number; one which falls within the range, one-indexed, of the choices presented.")
+
+            verify = await self.io.get_input(f"You have expressed the desire to begin in [blue]{inflector.an(location_choice.name)}[/blue]. Are you certain?")
+            if verify in ["YES", "Y"]:
+                break
+            else:
+                self.io.print("Then consider once more.")
+
+        return location_choice
 
 

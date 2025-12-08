@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "humanize>=4.14.0",
     "inflect>=7.5.0",
     "textual>=6.7.1",
 ]

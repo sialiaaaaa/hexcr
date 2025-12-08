@@ -14,13 +14,15 @@ from game.screens import EventHandler
 Shared input/output class so other functions can interface with Textual
 """
 class GameIO:
-    def __init__(self, screen, app):
-        self.screen = screen
+    def __init__(self, app):
         self.app = app
 
     @property
     def state(self):
         return self.app.game_state
+    @property
+    def screen(self):
+        return self.app.screen
 
     def print(self, message):
         """Searches for a RichLog tagged 'output' on the current screen and displays text there."""
@@ -39,6 +41,7 @@ class GameIO:
         self.app.pop_screen()
 
     def switch_screen(self, target_screen_name: str):
+        self.state.screen = target_screen_name
         self.app.switch_screen(target_screen_name)
 
 
@@ -63,9 +66,6 @@ class GameScreen(Screen):
         super().__init__()
         self.input_value = None
         self.input_event = Event()
-
-    def on_mount(self):
-        pass
 
     def on_screen_resume(self):
         """Called when returning to this screen after it was suspended"""
@@ -146,13 +146,11 @@ class Game(App):
         self.push_screen("scene")
 
         # Create IO interface with access to both screen and app
-        self.io = GameIO(self, self.app)
+        self.io = GameIO(self.app)
         self.event_handler = EventHandler(self.io)
 
         self.run_worker(self._run_game())
 
     async def _run_game(self):
-        io = GameIO(self.screen, self)
-        event_handler = EventHandler(io)
-        await event_handler.run()
+        await self.event_handler.run()
 
