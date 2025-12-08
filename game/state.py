@@ -1,8 +1,7 @@
 import game.events as events
 from enum import Enum, auto
-import humanize, inflect
-
-inflector = inflect.engine()
+import humanize
+from game.shared import inflector
 
 class Flag(Enum):
     SEEN_CHARACTER_CREATION = auto()
@@ -25,14 +24,14 @@ class Player:
         return (20-attributes["frailty"])*level
 
     def index(self):
-        return humanize.natural_list(self.inventory) if self.inventory else "nothing"
+        return humanize.natural_list([inflector.an(item.name) for item in self.inventory]) if self.inventory else "nothing"
 
     def recapitulate(self):
         return f"""Your name is [red]{self.name}[/red], burdened {inflector.number_to_words(self.level)} {"time" if self.level == 1 else "times"} over. You are possessed of:
     {inflector.number_to_words(self.attributes["frailty"]).capitalize()} [yellow]frailty[/yellow],
-    {inflector.number_to_words(self.attributes["gracelessness"]).capitalize()} [yellow]gracelessness[/yellow],
-    {inflector.number_to_words(self.attributes["caprice"]).capitalize()} [yellow]caprice[/yellow],
-    {inflector.number_to_words(self.attributes["misfortune"]).capitalize()} [yellow]misfortune[/yellow],
+    {inflector.number_to_words(self.attributes["gracelessness"])} [yellow]gracelessness[/yellow],
+    {inflector.number_to_words(self.attributes["caprice"])} [yellow]caprice[/yellow],
+    {inflector.number_to_words(self.attributes["misfortune"])} [yellow]misfortune[/yellow],
     and {inflector.number_to_words(self.hp)} [yellow]credulity[/yellow], out of a possible {inflector.number_to_words(self.max_hp)}.
 """
 

@@ -2,8 +2,7 @@ from game.state import Player
 from generator.names import Generator
 import inflect, humanize
 from pathlib import Path
-
-inflector = inflect.engine()
+from game.shared import inflector, gen
 
 class Event:
     def __init__(self, io):
@@ -61,15 +60,13 @@ class CreateCharacter(Event):
 
 class ChooseStartingLocation(Event):
     async def run(self):
-        gen = Generator()
-        gen.load_from_json(Path("generator/words.json"))
         locations = []
         for i in range(3):
             locations.append(gen.generate_random({"place"}))
         self.io.print(f"""You may begin in any of the following [blue]environs[/blue]:
     {inflector.an(locations[0].name)},
     {inflector.an(locations[1].name)},
-    or {inflector.an(locations[2].name)}?
+    or {inflector.an(locations[2].name)}.
 """)
         while True:
             while True:
@@ -87,5 +84,4 @@ class ChooseStartingLocation(Event):
                 self.io.print("Then consider once more.")
 
         return location_choice
-
 
